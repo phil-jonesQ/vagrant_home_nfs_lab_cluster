@@ -1,0 +1,50 @@
+Vagrant env	Warrington Build Env
+
+192.168.10.4 >>> MCS 192.168.200.4
+
+192.168.10.8 >>> nfs1 192.168.200.8
+
+192.168.10.9 >>> nfs2 192.168.200.9
+
+passwordless ssh setup between nfs1 / nfs2
+rsync setup between ~/globecast/films (both ways)
+
+nfs1 (and sometimes nfs2 vagrant setup)
+
+    8  sudo hostnamectl set-hostname "nfs1"
+    9  sudo yum install -y pcs fence-agents-all
+   14  sudo systemctl enable pcsd
+   15  sudo systemctl start pcsd
+   16  echo "Quadr1ga" | passwd --stdin hacluster
+   17  sudo echo "Quadr1ga" | passwd --stdin hacluster
+   19  sudo pcs cluster auth nfs1 nfs2
+   24  pcs cluster setup --start --name nfs_cluster nfs1 nfs2
+  138  sudo pcs stonith create disk_fencing fence_heuristics_ping ping_targets="nfs1 nfs2" pcmk_host_list="nfs1 nfs2" pcmk_monitor_action="metadata" pcmk_reboot_action="off" meta provides="unfencing"
+  139  sudo pcs stonith show
+  140  sudo yum install nfs-utils -y
+  141  sudo systemctl stop nfs-lock &&  systemctl disable nfs-lock
+  142  sudo systemctl stop nfs-lock && sudo systemctl disable nfs-lock
+  143  sudo pcs stonith show
+  Add another drive to VM via virtual box GUI
+
+  156  sudo fdisk /dev/sdb
+  157  sudo partprobe
+  158  sudo mkfs.xfs /dev/sdb1
+  170  sudo pcs resource delete nfsgrp ### due to previous error
+  171  sudo pcs resource create nfsshare Filesystem device=/dev/sdb1  directory=/home/vagrant/globecast/films/ fstype=xfs --group nfsgrp
+  172  sudo pcs resource create nfsd nfsserver nfs_shared_infodir=/home/vagrant/globecast/films/nfsinfo --group nfsgrp
+  173  sudo pcs resource create nfsroot exportfs clientspec="192.168.10.0/24" options=rw,sync,no_root_squash directory=/home/vagrant/globecast/films/ fsid=0 --group nfsgrp
+  174  sudo pcs resource create nfsip IPaddr2 ip=192.168.10.10 cidr_netmask=24 --group nfsgrp
+  177  ping 192.168.10.10
+  178  ping 192.168.10.11
+  190  sudo yum install -y rsync
+  191  ssh-keygen 
+  192  ssh-copy-id vagrant@nfs3
+  200  rsync -avl vagrant@nfs2:/home/vagrant/globecast/films/ /home/vagrant/globecast/films/
+  202  rsync -avl vagrant@nfs2:/home/vagrant/globecast/films/ /home/vagrant/globecast/films/
+  [vagrant@nfs1 films]$ cat /etc/cron.d/rsync 
+*/5 * * * *     vagrant rsync -avl --exclude '/home/vagrant/globecast/films/nfsinfo' vagrant@nfs2:/home/vagrant/globecast/films/ /home/vagrant/globecast/films/
+[vagrant@nfs1 films]$ 
+
+
+
